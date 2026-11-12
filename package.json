@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node tools/serve.mjs 8080",
     "assets": "node tools/optimize-assets.mjs",
-    "smoke": "node tools/smoke.mjs tools/scenarios/basic.mjs --query quality=low&dynamicResolution=false"
+    "smoke": "node tools/smoke.mjs tools/scenarios/basic.mjs --query \"quality=low&dynamicResolution=false\""
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",
