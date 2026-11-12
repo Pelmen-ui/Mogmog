@@ -63,6 +63,8 @@ export const soldierMethods = {
             id: `${faction}_${slotIndex}_${Math.floor(Math.random() * 9999)}`,
             name: faction === 'RU' ? `Десантник ВС РФ #${slotIndex + 1}` : `Боец ВСУ #${slotIndex + 1}`,
             faction,
+            role: 'rifleman',
+            weaponKey: faction === 'RU' ? 'ak12' : 'm4a1',
             slotIndex,
             isAlliedDesant,
             homePos: pos.clone(),
@@ -77,6 +79,11 @@ export const soldierMethods = {
             flinchAmount: 0,
             fireTimer: 0.8 + Math.random() * 1.5,
             moveTarget: pos.clone(),
+            velocity: new THREE.Vector3(),
+            stance: 'stand',
+            aimPoint: null,
+            suppression: 0,
+            isWounded: false,
             respawnCountdown: 0,
             hitboxes: []
         };

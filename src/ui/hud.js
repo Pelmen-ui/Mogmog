@@ -2,6 +2,14 @@ import * as THREE from 'three';
 import { STATS } from '../../stats.js';
 
 export const hudMethods = {
+    // Short player-facing message. kind: 'info' | 'warn' | 'danger'.
+    notify(text, { kind = 'info', ttl = 3.5 } = {}) {
+        const banner = document.getElementById('squad-order-banner');
+        if (!banner) return;
+        banner.textContent = text;
+        banner.classList.toggle('active-assault', kind !== 'info');
+    },
+
     flashCrosshairHit(isHeadshot) {
         const hm = document.getElementById('hit-marker');
         if (!hm) return;

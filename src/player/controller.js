@@ -190,6 +190,7 @@ export const playerControllerMethods = {
     },
 
     updatePlayerController(dt) {
+        if (this.controlOverride && this.controlOverride(dt) === true) return;
         this.updateNearestVehiclePrompt();
 
         if (this.fpvMode.active) {

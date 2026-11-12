@@ -101,6 +101,7 @@ export class BattleEngine {
         this.smoothYawVel = 0;
         this.smoothPitchVel = 0;
         this.lookOverride = null;
+        this.controlOverride = null;
 
         this.cameraMount = new THREE.Group();
         this.scene.add(this.cameraMount);
@@ -143,6 +144,8 @@ export class BattleEngine {
         this.dynamicLights = [];
         this.staticShootableMeshes = [];
         this.modules = [];
+        this.hudLayer = document.getElementById('hud-layer');
+        this._modifiers = new Map();
 
         this.playerVehicleState = {
             vehicle: null,
@@ -203,6 +206,22 @@ export class BattleEngine {
 
     instantiateStaticModel(key, targetSpanOverride = null) {
         return this.assets.instantiate(key, targetSpanOverride);
+    }
+
+    // Multiplicative gameplay modifiers (see docs/ARCHITECTURE.md): modules contribute, controllers consume.
+    addModifier(name, fn) {
+        const list = this._modifiers.get(name) || [];
+        list.push(fn);
+        this._modifiers.set(name, list);
+        return () => this._modifiers.set(name, (this._modifiers.get(name) || []).filter((f) => f !== fn));
+    }
+
+    modifier(name) {
+        const list = this._modifiers.get(name);
+        if (!list) return 1;
+        let value = 1;
+        for (let i = 0; i < list.length; i++) value *= list[i]();
+        return value;
     }
 
     async installModules() {
