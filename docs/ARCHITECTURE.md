@@ -64,6 +64,27 @@ and weapon code apply them; health, suppression, carrying etc. contribute.
   cut-scene cameras). Clear it to return control.
 - `engine.lookOverride = (dx, dy) => true` consumes look input.
 - `engine.customRenderHook = (renderer, scene, camera, dt)` replaces the final render (post-processing).
+- `engine.baseFov` is the unzoomed field of view (from settings). Sights and optics set
+  `camera.fov = baseFov / zoom` and restore `baseFov` when done.
+
+### Stable engine methods
+
+These names are called across packages; owners may change the implementation, not the signature.
+
+| Method | Owner | Notes |
+|---|---|---|
+| `getAimRay(outOrigin, outDir)` | fp | Where the player's weapon points (camera by default) |
+| `performBallisticRaycast(wStat)`, `launchRpgRocket(wStat)` | ballistics | Player shot entry points |
+| `applyBulletHitToSoldier(unit, zone, part, point, dir, wStat, attacker)`, `killSoldierWithRagdoll(...)` | ballistics | |
+| `triggerHighExplosiveBlast(pos, radius, force, damage, label, opts?)` | ballistics | `opts: { kind, attacker, faction, fragments }` |
+| `damagePlayer({ amount, zone, pos, dir, attacker, source })` | ballistics | Forwards to `health.applyDamage` when present |
+| `damageVehicle(vehicle, { amount, pos, dir, zone, penetrated, ammo, kind, attacker, label })` | ballistics | Hull hp, then `vehicleSystems.applyHit`, then `vehicleSystems.beginCookOff` or `destroyVehicle` |
+| `destroyVehicle(vehicle, { attacker, label })` | ballistics | Final destruction |
+| `getVehicleMuzzle(vehicle, outPos, outDir)`, `tryFireVehicleWeapon(vehicle)` | vehsys | Uses `vehicleParts.getMuzzle` when it returns `true` |
+| `unit.animator.beginDeath(info, startRagdoll)` | anim | Return `true` to defer the ragdoll and call `startRagdoll()` later |
+| `physics.spawnDebris(mesh, { shape, mass, linvel, angvel, ttl })` | physics | Generic short-lived dynamic prop |
+| `notify(text, { kind, ttl })`, `pushKillFeed(...)`, `updateWeaponHUD()` | ui | |
+| `spawnImpactParticles(pos, normal, hexColor, count)`, `spawnTracerBeam(from, to, hexColor)`, `spawnBrassCasing()` | vfx | Legacy effect calls |
 
 ## Entities
 
@@ -115,8 +136,11 @@ Payload vectors are read-only and may be reused by the emitter: copy what you ke
 | `era:detonated` | `{ vehicle, pos, normal }` |
 | `smoke:deployed` | `{ pos, kind: 'rdg2'\|'tucha', radius, duration }` |
 | `drone:launched`, `drone:destroyed`, `drone:jammed` | `{ drone, kind, isPlayer }`, `{ drone, pos, cause }`, `{ level, pos }` |
-| `order` | `{ type }` squad order issued by the player |
+| `order` | `{ type, pos? }` squad order issued by the player (`ASSAULT`, `HOLD`, `MOVE`) |
 | `callout` | `{ key, faction, pos, text }` voice/radio line (`contact`, `grenade`, `air_fpv`, `reloading`, ...) |
+| `casing:bounce` | `{ pos, kind, surface }` ejected case or link hit something |
+| `recon:spotted` | `{ pos, kind, faction, ttl }` contact reported by a recon drone |
+| `weapon:overheat` | `{ weapon, level }` player weapon barrel heat 0..1 |
 
 ## Module slots and owners
 

@@ -72,6 +72,9 @@ export class BattleEngine {
         this.isStarted = false;
         this.isPaused = false;
         this.isPointerLocked = false;
+        // Unzoomed field of view; sights and optics divide it and must restore it.
+        this.baseFov = this.settings.get('fov');
+        this.loadout = null;
         this.time = 0;
         this.frame = 0;
         // Ambient wind (m/s) shared by smoke, dust, ballistics and drones.
@@ -225,6 +228,14 @@ export class BattleEngine {
     }
 
     async installModules() {
+        // The sound engine is created in the constructor but shares the module lifecycle.
+        try {
+            this.sound.name = 'sound';
+            if (typeof this.sound.install === 'function') await this.sound.install(this);
+            this.modules.push(this.sound);
+        } catch (err) {
+            console.error('[modules] "sound" failed to install', err);
+        }
         for (const [name, factory] of MODULES) {
             try {
                 const mod = factory(this) || {};

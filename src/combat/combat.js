@@ -5,8 +5,7 @@ export const combatMethods = {
     performBallisticRaycast(wStat) {
         const origin = new THREE.Vector3();
         const dir = new THREE.Vector3(0, 0, -1);
-        this.camera.getWorldPosition(origin);
-        dir.applyQuaternion(this.camera.quaternion);
+        this.getAimRay(origin, dir);
 
         const spread = this.isAiming ? 0.002 : 0.01;
         dir.x += (Math.random() - 0.5) * spread;
@@ -88,7 +87,11 @@ export const combatMethods = {
             this.ragdollPhysics.spawnFlyingHelmet(headPos, impulseVec, unit.faction);
         }
 
-        this.ragdollPhysics.triggerArticulatedRagdoll(unit, partName, impulseVec, hitPoint);
+        // The animator may play a short pre-death stagger first; it then calls startRagdoll itself.
+        const startRagdoll = () => this.ragdollPhysics.triggerArticulatedRagdoll(unit, partName, impulseVec, hitPoint);
+        const deferred = unit.animator && typeof unit.animator.beginDeath === 'function'
+            && unit.animator.beginDeath({ zone: zoneKey, part: partName, dir: impactDir, impulse: impulseVec, hitPoint }, startRagdoll) === true;
+        if (!deferred) startRagdoll();
 
         const dist = Math.round(this.cameraMount.position.distanceTo(unit.root.position));
         if (attackerName === 'ВЫ') {
@@ -102,8 +105,7 @@ export const combatMethods = {
     launchRpgRocket(wStat) {
         const origin = new THREE.Vector3();
         const dir = new THREE.Vector3(0, 0, -1);
-        this.camera.getWorldPosition(origin);
-        dir.applyQuaternion(this.camera.quaternion).normalize();
+        this.getAimRay(origin, dir);
 
         const rocketGroup = new THREE.Group();
         const bodyMesh = new THREE.Mesh(
@@ -183,17 +185,41 @@ export const combatMethods = {
             const d = veh.chassisPos.distanceTo(epicenter);
             if (d < radius) {
                 const dmg = Math.round(maxDamage * (1.0 - d / radius));
-                veh.hp = Math.max(0, veh.hp - dmg);
-                if (veh.hp <= 0) {
-                    veh.destroyed = true;
-                    this.events.emit('vehicle:destroyed', { vehicle: veh, attacker: 'ВЫ', label: sourceLabel });
-                    this.dismountSquadFromVehicle(veh);
-                    this.ragdollPhysics.spawnBlownTurretDebris(veh);
-                    this.pushKillFeed('ВЫ', veh.name, 'ДЕТОНАЦИЯ БК / СРЫВ БАШНИ', Math.round(camDist), sourceLabel);
-                    this.spawnImpactParticles(veh.chassisPos.clone().add(new THREE.Vector3(0, 1.8, 0)), new THREE.Vector3(0, 1, 0), 0xff4400, 48);
-                }
+                this.damageVehicle(veh, { amount: dmg, pos: epicenter, kind: 'blast', attacker: 'ВЫ', label: sourceLabel });
             }
         }
+    },
+
+    // Single entry for damage to the player; the health module takes over when present.
+    damagePlayer(hit) {
+        if (this.health && typeof this.health.applyDamage === 'function') {
+            this.health.applyDamage(hit);
+            return;
+        }
+        this.playerHp = Math.max(0, this.playerHp - (hit.amount || 0));
+        this.events.emit('player:hit', hit);
+    },
+
+    // Single entry for damage to a vehicle: hull hp here, module effects in vehicleSystems.
+    damageVehicle(vehicle, hit) {
+        if (!vehicle || vehicle.destroyed) return;
+        vehicle.hp = Math.max(0, vehicle.hp - (hit.amount || 0));
+        if (this.vehicleSystems && typeof this.vehicleSystems.applyHit === 'function') this.vehicleSystems.applyHit(vehicle, hit);
+        if (vehicle.hp > 0 || vehicle.destroyed) return;
+        if (this.vehicleSystems && typeof this.vehicleSystems.beginCookOff === 'function' && this.vehicleSystems.beginCookOff(vehicle, hit) === true) return;
+        this.destroyVehicle(vehicle, hit);
+    },
+
+    destroyVehicle(vehicle, { attacker = 'ВЫ', label = '' } = {}) {
+        if (!vehicle || vehicle.destroyed) return;
+        vehicle.destroyed = true;
+        vehicle.hp = 0;
+        this.events.emit('vehicle:destroyed', { vehicle, attacker, label });
+        this.dismountSquadFromVehicle(vehicle);
+        this.ragdollPhysics.spawnBlownTurretDebris(vehicle);
+        const dist = Math.round(this.cameraMount.position.distanceTo(vehicle.chassisPos));
+        this.pushKillFeed(attacker, vehicle.name, 'ДЕТОНАЦИЯ БК / СРЫВ БАШНИ', dist, label);
+        this.spawnImpactParticles(vehicle.chassisPos.clone().add(new THREE.Vector3(0, 1.8, 0)), new THREE.Vector3(0, 1, 0), 0xff4400, 48);
     },
 
     updateProjectiles(dt) {

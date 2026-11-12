@@ -1,4 +1,4 @@
-node_modules/
-raw_models/
-.hoplite/
+node_modules
+raw_models
+.hoplite
 *.log

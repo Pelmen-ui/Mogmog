@@ -104,6 +104,12 @@ export const playerControllerMethods = {
         }
     },
 
+    // Where the player's weapon points (the camera by default; free-aim overrides this).
+    getAimRay(outOrigin, outDir) {
+        this.camera.getWorldPosition(outOrigin);
+        outDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
+    },
+
     setAiming(down) {
         this.isAiming = Boolean(down);
     },

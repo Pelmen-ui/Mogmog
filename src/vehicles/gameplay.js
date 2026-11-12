@@ -166,24 +166,26 @@ export const vehicleGameplayMethods = {
         }
     },
 
+    // World muzzle position and bore direction: the visual rig answers when present, else the spec offset.
+    getVehicleMuzzle(vehicle, outPos, outDir) {
+        if (this.vehicleParts && typeof this.vehicleParts.getMuzzle === 'function'
+            && this.vehicleParts.getMuzzle(vehicle, outPos, outDir) === true) return;
+        const m = vehicle.spec.muzzleOffset;
+        outPos.set(m[0], m[1], m[2]).applyQuaternion(vehicle.chassisQuat).add(vehicle.chassisPos);
+        const yaw = vehicle.turretYaw;
+        const pitch = vehicle.turretPitch;
+        outDir.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)).normalize();
+    },
+
     tryFireVehicleWeapon(vehicle) {
         if (!vehicle || vehicle.destroyed) return;
         const now = performance.now() * 0.001;
         if (now - vehicle.fireTimer < vehicle.spec.fireCooldown) return;
         vehicle.fireTimer = now;
 
-        const muzzleLocal = new THREE.Vector3(
-            vehicle.spec.muzzleOffset[0],
-            vehicle.spec.muzzleOffset[1],
-            vehicle.spec.muzzleOffset[2]
-        );
-        const muzzleWorld = muzzleLocal.applyQuaternion(vehicle.chassisQuat).add(vehicle.chassisPos);
-
-        const aimDir = new THREE.Vector3(
-            -Math.sin(this.yaw) * Math.cos(this.pitch),
-            Math.sin(this.pitch),
-            -Math.cos(this.yaw) * Math.cos(this.pitch)
-        ).normalize();
+        const muzzleWorld = new THREE.Vector3();
+        const aimDir = new THREE.Vector3();
+        this.getVehicleMuzzle(vehicle, muzzleWorld, aimDir);
 
         this.sound.playGunshot(0, vehicle.spec.isHeavyCannon);
         this.events.emit('vehicle:fired', { vehicle, pos: muzzleWorld, dir: aimDir, heavy: vehicle.spec.isHeavyCannon, isPlayer: true });

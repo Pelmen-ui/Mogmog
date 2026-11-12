@@ -532,6 +532,31 @@ export class RagdollPhysicsEngine {
         this.debrisBodies.push({ mesh, body, ttl: 14.0 });
     }
 
+    // Generic short-lived dynamic prop. `mesh` (already positioned) is added to the scene and follows the body.
+    // shape: { type: 'ball', r } | { type: 'box', half: [x, y, z] } | { type: 'capsule', halfHeight, r }
+    spawnDebris(mesh, { shape = { type: 'ball', r: 0.1 }, mass = 1, linvel = null, angvel = null, ttl = 12, friction = 0.6, restitution = 0.3 } = {}) {
+        if (!this.ready) return null;
+        const p = mesh.position;
+        const q = mesh.quaternion;
+        const rbDesc = RAPIER.RigidBodyDesc.dynamic()
+            .setTranslation(p.x, p.y, p.z)
+            .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w })
+            .setLinearDamping(0.3)
+            .setAngularDamping(0.3);
+        if (linvel) rbDesc.setLinvel(linvel.x, linvel.y, linvel.z);
+        if (angvel) rbDesc.setAngvel({ x: angvel.x, y: angvel.y, z: angvel.z });
+        const body = this.world.createRigidBody(rbDesc);
+        let colDesc;
+        if (shape.type === 'box') colDesc = RAPIER.ColliderDesc.cuboid(shape.half[0], shape.half[1], shape.half[2]);
+        else if (shape.type === 'capsule') colDesc = RAPIER.ColliderDesc.capsule(shape.halfHeight, shape.r);
+        else colDesc = RAPIER.ColliderDesc.ball(shape.r || 0.1);
+        this.world.createCollider(colDesc.setMass(mass).setFriction(friction).setRestitution(restitution), body);
+        this.scene.add(mesh);
+        const entry = { mesh, body, ttl };
+        this.debrisBodies.push(entry);
+        return entry;
+    }
+
     triggerArticulatedRagdoll(unit, hitPartName, impulseVec, hitPointWorld) {
         this.removeUnitHitboxes(unit);
         if (!this.ready) return;
