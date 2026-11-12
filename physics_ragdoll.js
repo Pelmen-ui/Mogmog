@@ -708,6 +708,29 @@ export class RagdollPhysicsEngine {
         }
     }
 
+    applyVehicleImpulse(vehicle, impulse, worldPoint = null) {
+        if (!vehicle || !vehicle.body) return;
+        vehicle.body.wakeUp();
+        if (worldPoint) {
+            vehicle.body.applyImpulseAtPoint(
+                { x: impulse.x, y: impulse.y, z: impulse.z },
+                { x: worldPoint.x, y: worldPoint.y, z: worldPoint.z },
+                true
+            );
+        } else {
+            vehicle.body.applyImpulse({ x: impulse.x, y: impulse.y, z: impulse.z }, true);
+        }
+    }
+
+    removeRagdoll(unit) {
+        const idx = this.ragdolls.findIndex((r) => r.unit === unit);
+        if (idx === -1) return;
+        for (const body of Object.values(this.ragdolls[idx].bodies)) {
+            this.world.removeRigidBody(body);
+        }
+        this.ragdolls.splice(idx, 1);
+    }
+
     step(dt, allUnits, onRoadkillCallback) {
         if (!this.ready) return;
         this.stepVehicles(dt, allUnits, onRoadkillCallback);
